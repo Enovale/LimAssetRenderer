@@ -10,6 +10,7 @@ using BepInEx.Unity.IL2CPP.Utils.Collections;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.Injection;
 using MainUI;
+using Unity.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -55,7 +56,7 @@ namespace AssetRenderer
         private static Il2CppSystem.Collections.IEnumerator coroutine;
         private static int _threadCount = 0;
         private static object _threadLock = new();
-        private static Queue<(int Frame, int Personality, byte[] RawData)> _screenshotQueue = new();
+        private static Queue<(int Frame, int Personality, NativeArray<Color32> RawData)> _screenshotQueue = new();
         private static Queue<Texture2D> _destroyQueue = new();
 
         internal static void Setup()
@@ -91,7 +92,7 @@ namespace AssetRenderer
                     {
                         var thread2 = IL2CPP.il2cpp_thread_attach(IL2CPP.il2cpp_domain_get());
                         using var stream = new MemoryStream();
-                        BitmapEncoder.WriteBitmap(stream, 1920, 1080, data);
+                        BitmapEncoder.WriteBitmap(stream, 1920, 1080, data.ToArray());
                         stream.Flush();
                         File.WriteAllBytes(path, stream.ToArray());
                         stream.Dispose();
@@ -135,11 +136,7 @@ namespace AssetRenderer
             if (_recording)
             {
                 var screenshotTexture = ScreenCapture.CaptureScreenshotAsTexture(_scale);
-                var watch = new Stopwatch();
-                watch.Start();
-                _screenshotQueue.Enqueue((_frames++, _currentRecord.PersonalityId, screenshotTexture.GetRawTextureData()));
-                watch.Stop();
-                Plugin.PluginLog.LogInfo(watch.ElapsedMilliseconds);
+                _screenshotQueue.Enqueue((_frames++, _currentRecord.PersonalityId, screenshotTexture.GetRawTextureData<Color32>()));
                 _destroyQueue.Enqueue(screenshotTexture);
                 //ScreenCapture.CaptureScreenshot(GetPath(_frames++, _currentRecord.PersonalityId), _scale);
             }

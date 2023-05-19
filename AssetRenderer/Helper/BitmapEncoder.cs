@@ -1,11 +1,12 @@
 using System;
 using System.IO;
+using UnityEngine;
 
 namespace AssetRenderer.Helper
 {
     internal class BitmapEncoder
     {
-        public static void WriteBitmap(Stream stream, int width, int height, byte[] imageData)
+        public static void WriteBitmap(Stream stream, int width, int height, Color32[] imageData)
         {
             using var bw = new BinaryWriter(stream);
             // define the bitmap file header
@@ -29,10 +30,10 @@ namespace AssetRenderer.Helper
             bw.Write ((uint)0);  									// biClrImportant;
 
             // switch the image data from RGB to BGR
-            for (var imageIdx = 0; imageIdx < imageData.Length; imageIdx += 3) {
-                bw.Write(imageData[imageIdx + 1]);
-                bw.Write(imageData[imageIdx + 0]);
-                bw.Write(imageData[imageIdx + 2]);
+            for (var imageIdx = 0; imageIdx < imageData.Length; imageIdx++) {
+                bw.Write(imageData[imageIdx].r);
+                bw.Write(imageData[imageIdx].g);
+                bw.Write(imageData[imageIdx].b);
                 //bw.Write((byte)255);
             }
         }
