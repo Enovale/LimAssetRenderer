@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <AssemblyName>AssetRenderer</AssemblyName>
+        <Description>Renders dotween assets.</Description>
+        <Version>1.0.0</Version>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <LangVersion>latest</LangVersion>
+        <RestoreAdditionalProjectSources>
+            https://api.nuget.org/v3/index.json;
+            https://nuget.bepinex.dev/v3/index.json;
+            https://nuget.samboy.dev/v3/index.json
+        </RestoreAdditionalProjectSources>
+        <RootNamespace>AssetRenderer</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.*" IncludeAssets="compile" />
+        <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
+        <PackageReference Include="UniverseLib.IL2CPP.Interop" Version="1.*" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Reference Include="$(GameDirectoryPath)\BepInEx\interop\*.dll" />
+    </ItemGroup>
+
+    <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+        <Exec Condition="'$(OS)' == 'Windows_NT'" Command="XCOPY &quot;$(TargetPath)&quot; &quot;$(GameDirectoryPath)\BepInEx\plugins\&quot; /S /Y" />
+        <Exec Condition="'$(OS)' == 'UNIX'" Command="mkdir -p &quot;$(GameDirectoryPath)/BepInEx/plugins/&quot; &amp;&amp; cp -rf &quot;$(TargetPath)&quot; &quot;$(GameDirectoryPath)/BepInEx/plugins/&quot;" />
+    </Target>
+
+    <Import Project="../GamePath.targets" />
+</Project>
