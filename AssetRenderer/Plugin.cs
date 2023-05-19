@@ -5,7 +5,6 @@ using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
 using UnityEngine;
 using UniverseLib;
-using UniverseLib.Config;
 using UniverseLib.UI;
 
 namespace AssetRenderer

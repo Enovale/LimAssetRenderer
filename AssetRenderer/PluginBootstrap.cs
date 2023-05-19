@@ -1,7 +1,13 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using AssetRenderer.Helper;
 using BepInEx.Unity.IL2CPP.Utils.Collections;
+using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.Injection;
 using MainUI;
 using UnityEngine;
@@ -47,6 +53,10 @@ namespace AssetRenderer
         private static int _frames = 0;
         private static bool _recording = false;
         private static Il2CppSystem.Collections.IEnumerator coroutine;
+        private static int _threadCount = 0;
+        private static object _threadLock = new();
+        private static Queue<(int Frame, int Personality, byte[] RawData)> _screenshotQueue = new();
+        private static Queue<Texture2D> _destroyQueue = new();
 
         internal static void Setup()
         {
@@ -56,6 +66,48 @@ namespace AssetRenderer
             DontDestroyOnLoad(obj);
             obj.hideFlags |= HideFlags.HideAndDontSave;
             Instance = obj.AddComponent<PluginBootstrap>();
+            var thread = new Thread(EncodeAndSave);
+            thread.Start();
+            /*
+            for (var i = 0; i < 80; i++)
+            {
+                var thread = new Thread(EncodeAndSave);
+                thread.Start();
+            }
+            */
+        }
+
+        private static void EncodeAndSave()
+        {
+            var thread = IL2CPP.il2cpp_thread_attach(IL2CPP.il2cpp_domain_get());
+
+            while (true)
+            {
+                while (_threadCount < 60 && _screenshotQueue.TryDequeue(out var result))
+                {
+                    var path = GetPath(result.Frame, result.Personality);
+                    var data = result.RawData;
+                    new Thread(() =>
+                    {
+                        var thread2 = IL2CPP.il2cpp_thread_attach(IL2CPP.il2cpp_domain_get());
+                        using var stream = new MemoryStream();
+                        BitmapEncoder.WriteBitmap(stream, 1920, 1080, data);
+                        stream.Flush();
+                        File.WriteAllBytes(path, stream.ToArray());
+                        stream.Dispose();
+                        _threadCount--;
+                        IL2CPP.il2cpp_thread_detach(thread2);
+                    }).Start();
+                    Plugin.PluginLog.LogInfo($"Started thread {_threadCount}");
+                    _threadCount++;
+                }
+                
+                //if (_recording)
+                //    Plugin.PluginLog.LogInfo("Sleeping!");
+                Thread.Sleep(1);
+            }
+            
+            IL2CPP.il2cpp_thread_detach(thread);
         }
 
         private void Awake()
@@ -82,20 +134,33 @@ namespace AssetRenderer
         {
             if (_recording)
             {
-                ScreenCapture.CaptureScreenshot(GetPath(), _scale);
+                var screenshotTexture = ScreenCapture.CaptureScreenshotAsTexture(_scale);
+                var watch = new Stopwatch();
+                watch.Start();
+                _screenshotQueue.Enqueue((_frames++, _currentRecord.PersonalityId, screenshotTexture.GetRawTextureData()));
+                watch.Stop();
+                Plugin.PluginLog.LogInfo(watch.ElapsedMilliseconds);
+                _destroyQueue.Enqueue(screenshotTexture);
+                //ScreenCapture.CaptureScreenshot(GetPath(_frames++, _currentRecord.PersonalityId), _scale);
             }
         }
 
-        private string GetPath()
+        private static string GetPath(int frame, int personalityId)
         {
-            var folderPath = Path.Combine(_recordFolder, $"{_currentRecord.PersonalityId}");
+            var folderPath = Path.Combine(_recordFolder, $"{personalityId}");
             if (!Directory.Exists(folderPath))
                 Directory.CreateDirectory(folderPath);
-            return Path.GetFullPath(Path.Combine(folderPath, $"out_{_frames++:000#}.png"));
+            return Path.GetFullPath(Path.Combine(folderPath, $"out_{frame:000#}.png"));
         }
 
         private void Update()
         {
+            while (Input.GetKeyDown(KeyCode.D) && _destroyQueue.TryDequeue(out var tex))
+            {
+                DestroyImmediate(tex);
+                GC.Collect();
+            }
+            
             if (_recording)
             {
                 Cursor.visible = false;
