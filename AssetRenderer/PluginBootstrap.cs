@@ -113,8 +113,7 @@ namespace AssetRenderer
 
             if (Input.GetKeyDown(KeyCode.F3))
             {
-                //EncounterPanel.Instance ??= new EncounterPanel(Plugin.UiBase);
-                //EncounterPanel.IsShown = !EncounterPanel.IsShown;
+                Plugin.ShowRecordPanel = !Plugin.ShowRecordPanel;
             }
         }
 

@@ -16,6 +16,20 @@ namespace AssetRenderer
         public static ManualLogSource PluginLog;
         
         public static UIBase UiBase { get; private set; }
+    
+        public static GameObject UIRoot => UiBase?.RootObject;
+        
+        public static bool ShowRecordPanel
+        {
+            get => UiBase is { Enabled: true };
+            set
+            {
+                if (UiBase == null || !UIRoot || UiBase.Enabled == value)
+                    return;
+
+                UniversalUI.SetUIActive(MyPluginInfo.PLUGIN_GUID, value);
+            }
+        }
 
         public Plugin()
         {
@@ -69,6 +83,7 @@ namespace AssetRenderer
             UiBase = UniversalUI.RegisterUI(MyPluginInfo.PLUGIN_GUID, UiUpdate);
             UiBase.SetOnTop();
             new RecordPanel(UiBase);
+            ShowRecordPanel = false;
             //EncounterPanel.IsShown = false;
         }
 
